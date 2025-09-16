@@ -6,16 +6,17 @@ from typing import Dict, Any, Optional
 from ..config import get_settings
 from ..prompts import (
     SCENARIO_SYSTEM_PROMPT,
-    SCENARIO_USER_PROMPT_TEMPLATE,
     EVALUATION_SYSTEM_PROMPT,
-    FALLBACK_SCENARIO_TITLE,
-    FALLBACK_SCENARIO_DESCRIPTION,
-    FALLBACK_EVALUATION_SCORE,
-    FALLBACK_EVALUATION_FEEDBACK,
     DEFAULT_SCENARIO_TEMPERATURE,
     DEFAULT_SCENARIO_MAX_TOKENS,
     DEFAULT_EVALUATION_TEMPERATURE,
     DEFAULT_EVALUATION_MAX_TOKENS
+)
+from .fallbacks import (
+    get_simple_fallback_scenario,
+    get_simple_fallback_evaluation,
+    get_fallback_scenario,
+    get_fallback_evaluation
 )
 import structlog
 
@@ -132,9 +133,9 @@ class LMStudioService:
             lm_studio_url=self.base_url
         )
         
-        # Build simple prompt
+        # Build scenario prompt
         logger.debug("Building scenario generation prompt", category=category, difficulty=difficulty)
-        prompt = self._build_simple_scenario_prompt(category, difficulty)
+        prompt = self._build_scenario_prompt(category, difficulty, None)
         
         # Simple LM Studio request payload
         payload = {
@@ -177,7 +178,7 @@ class LMStudioService:
             )
             
             # Parse the response
-            parsed_scenario = self._parse_simple_scenario_response(scenario_text, category, difficulty)
+            parsed_scenario = self._parse_scenario_response(scenario_text, category, difficulty)
             
             logger.info(
                 "Scenario generation completed successfully",
@@ -203,7 +204,7 @@ class LMStudioService:
             )
             
             # Return simple fallback
-            fallback_scenario = self._get_simple_fallback_scenario(category, difficulty)
+            fallback_scenario = get_simple_fallback_scenario(category, difficulty)
             
             logger.info(
                 "Using fallback scenario",
@@ -256,126 +257,12 @@ class LMStudioService:
             evaluation_text = response["choices"][0]["message"]["content"]
             
             # Parse and return evaluation
-            return self._parse_simple_evaluation_response(evaluation_text)
+            return self._parse_evaluation_response(evaluation_text)
             
         except Exception as e:
             logger.error("Failed to evaluate response", error=str(e))
             # Return simple fallback evaluation
-            return self._get_simple_fallback_evaluation()
-    
-    def _build_simple_scenario_prompt(self, category: str, difficulty: str) -> str:
-        """
-        Build prompt for simple scenario generation
-        
-        Uses the prompt template from prompts.py for easy modification.
-        """
-        return SCENARIO_USER_PROMPT_TEMPLATE.format(
-            category=category, 
-            difficulty=difficulty
-        ).strip()
-    
-    
-    def _parse_simple_scenario_response(self, response_text: str, category: str, difficulty: str) -> Dict[str, Any]:
-        """
-        Parse LLM response for simple scenario generation
-        """
-        try:
-            # Try to extract JSON from the response
-            start_idx = response_text.find('{')
-            end_idx = response_text.rfind('}') + 1
-            
-            if start_idx != -1 and end_idx != -1:
-                json_str = response_text[start_idx:end_idx]
-                scenario_data = json.loads(json_str)
-                
-                # Add metadata
-                scenario_data.update({
-                    "category": category,
-                    "difficulty": difficulty
-                })
-                
-                return scenario_data
-            else:
-                raise ValueError("No JSON found in response")
-                
-        except (json.JSONDecodeError, ValueError):
-            logger.warning("Failed to parse scenario JSON, using fallback")
-            return self._get_simple_fallback_scenario(category, difficulty)
-    
-    def _parse_simple_evaluation_response(self, response_text: str) -> Dict[str, Any]:
-        """
-        Parse LLM response for simple evaluation
-        
-        Simple parsing that handles various response formats.
-        Falls back gracefully if JSON parsing fails.
-        """
-        try:
-            # Find JSON in the response
-            start_idx = response_text.find('{')
-            end_idx = response_text.rfind('}') + 1
-            
-            if start_idx >= 0 and end_idx > start_idx:
-                json_str = response_text[start_idx:end_idx]
-                evaluation_data = json.loads(json_str)
-                
-                # Ensure required fields with defaults
-                score = evaluation_data.get("score", 7.0)
-                feedback = evaluation_data.get("feedback", "Good communication effort.")
-                
-                # Validate score is in range
-                if not isinstance(score, (int, float)) or score < 1 or score > 10:
-                    score = 7.0
-                
-                return {
-                    "score": float(score),
-                    "feedback": str(feedback)
-                }
-            else:
-                raise ValueError("No valid JSON found")
-                
-        except (json.JSONDecodeError, ValueError, KeyError) as e:
-            logger.warning("Failed to parse evaluation JSON", error=str(e))
-            return self._get_simple_fallback_evaluation()
-    
-    def _get_simple_fallback_scenario(self, category: str, difficulty: str) -> Dict[str, Any]:
-        """
-        Return a simple fallback scenario when LM Studio is unavailable
-        
-        Uses configuration from prompts.py for easy modification.
-        """
-        fallback_scenarios = {
-            "emergency": {
-                "title": "Emergency Communication",
-                "description": "Practice communicating with a patient in an emergency setting."
-            },
-            "routine": {
-                "title": "Routine Check-up",
-                "description": "Practice communication during a regular patient visit."
-            },
-            "general": {
-                "title": FALLBACK_SCENARIO_TITLE,
-                "description": FALLBACK_SCENARIO_DESCRIPTION
-            }
-        }
-        
-        scenario = fallback_scenarios.get(category, fallback_scenarios["general"])
-        scenario.update({
-            "category": category,
-            "difficulty": difficulty
-        })
-        
-        return scenario
-    
-    def _get_simple_fallback_evaluation(self) -> Dict[str, Any]:
-        """
-        Return a simple fallback evaluation when LM Studio is unavailable
-        
-        Uses configuration from prompts.py for easy modification.
-        """
-        return {
-            "score": FALLBACK_EVALUATION_SCORE,
-            "feedback": FALLBACK_EVALUATION_FEEDBACK
-        }
+            return get_simple_fallback_evaluation()
     
     def _build_scenario_prompt(self, category: str, difficulty: str, context: Optional[str]) -> str:
         """
@@ -421,12 +308,12 @@ Please evaluate this response on the following dimensions (scale 1-10):
 
 Provide your evaluation in the following JSON format:
 {{
-    
-    "score": 0.0",
-    "feedback": "Detailed explanation of strengths and areas for improvement with professionalism_score: 0.0,
-    medical_accuracy_score: 0.0,
-    "empathy_score": 0.0,
-    "clarity_score": 0.0,",
+    "score": 8.0,
+    "empathy_score": 8.0,
+    "clarity_score": 8.0,
+    "professionalism_score": 8.0,
+    "medical_accuracy_score": 8.0,
+    "feedback": "Detailed explanation of strengths and areas for improvement",
     "improvement_suggestions": ["Specific suggestion 1", "Specific suggestion 2", "Specific suggestion 3"]
 }}
 """
@@ -448,7 +335,7 @@ Provide your evaluation in the following JSON format:
                 # Add metadata
                 scenario_data.update({
                     "category": category,
-                    "difficulty_level": difficulty
+                    "difficulty": difficulty
                 })
                 
                 return scenario_data
@@ -457,7 +344,7 @@ Provide your evaluation in the following JSON format:
                 
         except (json.JSONDecodeError, ValueError):
             logger.warning("Failed to parse scenario JSON, using fallback")
-            return self._get_fallback_scenario(category, difficulty)
+            return get_simple_fallback_scenario(category, difficulty)
     
     def _parse_evaluation_response(self, response_text: str) -> Dict[str, Any]:
         """
@@ -474,7 +361,7 @@ Provide your evaluation in the following JSON format:
                 
                 # Ensure all required fields exist
                 required_fields = [
-                    "overall_score", "empathy_score", "clarity_score", 
+                    "score", "empathy_score", "clarity_score", 
                     "professionalism_score", "medical_accuracy_score"
                 ]
                 
@@ -488,51 +375,4 @@ Provide your evaluation in the following JSON format:
                 
         except (json.JSONDecodeError, ValueError):
             logger.warning("Failed to parse evaluation JSON, using fallback")
-            return self._get_fallback_evaluation()
-    
-    def _get_fallback_scenario(self, category: str, difficulty: str) -> Dict[str, Any]:
-        """
-        Return a fallback scenario when LM Studio is unavailable
-        """
-        fallback_scenarios = {
-            "emergency": {
-                "title": "Emergency Department Communication",
-                "description": "Practice communicating with a patient in an emergency setting",
-                "patient_background": "45-year-old patient presenting with chest pain, appears anxious",
-                "medical_context": "Initial assessment suggests possible cardiac event, requires immediate evaluation",
-                "communication_challenge": "Calm the patient while gathering critical information efficiently"
-            },
-            "general": {
-                "title": "Routine Check-up Discussion",
-                "description": "Practice routine patient communication during a regular visit",
-                "patient_background": "35-year-old patient for annual check-up, generally healthy",
-                "medical_context": "Routine physical examination, discussing lifestyle and preventive care",
-                "communication_challenge": "Engage patient in discussing lifestyle modifications and health goals"
-            }
-        }
-        
-        scenario = fallback_scenarios.get(category, fallback_scenarios["general"])
-        scenario.update({
-            "category": category,
-            "difficulty_level": difficulty
-        })
-        
-        return scenario
-    
-    def _get_fallback_evaluation(self) -> Dict[str, Any]:
-        """
-        Return a fallback evaluation when LM Studio is unavailable
-        """
-        return {
-            "overall_score": 7.0,
-            "empathy_score": 7.0,
-            "clarity_score": 7.0,
-            "professionalism_score": 7.0,
-            "medical_accuracy_score": 7.0,
-            "detailed_feedback": "Your response demonstrates good communication skills. Due to technical limitations, a detailed evaluation is not available at this time. Please try again later for comprehensive feedback.",
-            "improvement_suggestions": [
-                "Continue practicing active listening",
-                "Focus on clear, concise communication",
-                "Maintain professional empathy"
-            ]
-        }
+            return get_simple_fallback_evaluation()
