@@ -29,8 +29,8 @@ pip install -r requirements.txt
 4. Run the application:
 ```bash
 uvicorn app.main:app --reload
-```
-
+source healthcare_bot_env/bin/activate && python -m uvicorn app.main:app --host 127.0.0.1 --port 8000```
+streamlit run streamlit_app.py
 ## Features
 
 - Healthcare scenario generation
@@ -45,4 +45,3 @@ uvicorn app.main:app --reload
 - SQLAlchemy
 - LM Studio integration
 - SQLite/PostgreSQL
-- JWT authentication
