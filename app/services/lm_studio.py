@@ -41,7 +41,12 @@ class LMStudioService:
     async def _make_request(self, endpoint: str, payload: Dict[str, Any]) -> Dict[str, Any]:
         """
         Make HTTP request to LM Studio API
+        
+        Enhanced with detailed logging for monitoring and debugging.
         """
+        import time
+        start_time = time.time()
+        
         headers = {
             "Content-Type": "application/json",
         }
@@ -51,22 +56,60 @@ class LMStudioService:
             
         url = f"{self.base_url}{endpoint}"
         
+        logger.debug(
+            "Making request to LM Studio",
+            url=url,
+            endpoint=endpoint,
+            timeout=self.timeout,
+            has_api_key=bool(self.api_key),
+            payload_size=len(str(payload))
+        )
+        
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 response = await client.post(url, json=payload, headers=headers)
+                
+                elapsed_time = time.time() - start_time
+                
+                logger.debug(
+                    "LM Studio response received",
+                    status_code=response.status_code,
+                    response_time_seconds=round(elapsed_time, 2),
+                    response_size=len(response.text) if hasattr(response, 'text') else 0
+                )
+                
                 response.raise_for_status()
                 return response.json()
                 
         except httpx.TimeoutException:
-            logger.error("LM Studio request timeout", url=url)
+            elapsed_time = time.time() - start_time
+            logger.error(
+                "LM Studio request timeout",
+                url=url,
+                timeout=self.timeout,
+                elapsed_time_seconds=round(elapsed_time, 2)
+            )
             raise LMStudioError("Request to LM Studio timed out")
             
         except httpx.HTTPStatusError as e:
-            logger.error("LM Studio HTTP error", status_code=e.response.status_code, url=url)
+            elapsed_time = time.time() - start_time
+            logger.error(
+                "LM Studio HTTP error",
+                status_code=e.response.status_code,
+                url=url,
+                elapsed_time_seconds=round(elapsed_time, 2),
+                response_text=e.response.text[:200] if hasattr(e.response, 'text') else "N/A"
+            )
             raise LMStudioError(f"LM Studio API error: {e.response.status_code}")
             
         except httpx.RequestError as e:
-            logger.error("LM Studio connection error", error=str(e), url=url)
+            elapsed_time = time.time() - start_time
+            logger.error(
+                "LM Studio connection error",
+                error=str(e),
+                url=url,
+                elapsed_time_seconds=round(elapsed_time, 2)
+            )
             raise LMStudioError(f"Failed to connect to LM Studio: {str(e)}")
     
     async def generate_scenario(
@@ -79,8 +122,20 @@ class LMStudioService:
         
         Simple method that generates scenarios with basic prompts.
         Easy to modify for different use cases.
+        Enhanced with detailed logging for monitoring and debugging.
         """
+        import time
+        start_time = time.time()
+        
+        logger.info(
+            "Starting scenario generation",
+            category=category,
+            difficulty=difficulty,
+            lm_studio_url=self.base_url
+        )
+        
         # Build simple prompt
+        logger.debug("Building scenario generation prompt", category=category, difficulty=difficulty)
         prompt = self._build_simple_scenario_prompt(category, difficulty)
         
         # Simple LM Studio request payload
@@ -101,18 +156,67 @@ class LMStudioService:
             "stream": False
         }
         
+        logger.debug(
+            "Sending request to LM Studio",
+            temperature=DEFAULT_SCENARIO_TEMPERATURE,
+            max_tokens=DEFAULT_SCENARIO_MAX_TOKENS,
+            prompt_length=len(prompt)
+        )
+        
         try:
             # Make request to LM Studio
             response = await self._make_request("/v1/chat/completions", payload)
+            
+            elapsed_time = time.time() - start_time
             scenario_text = response["choices"][0]["message"]["content"]
             
+            logger.info(
+                "LM Studio response received",
+                response_time_seconds=round(elapsed_time, 2),
+                response_length=len(scenario_text),
+                category=category,
+                difficulty=difficulty
+            )
+            
             # Parse the response
-            return self._parse_simple_scenario_response(scenario_text, category, difficulty)
+            parsed_scenario = self._parse_simple_scenario_response(scenario_text, category, difficulty)
+            
+            logger.info(
+                "Scenario generation completed successfully",
+                total_time_seconds=round(time.time() - start_time, 2),
+                title=parsed_scenario.get("title", "N/A")[:50],
+                category=category,
+                difficulty=difficulty,
+                used_fallback=False
+            )
+            
+            return parsed_scenario
             
         except Exception as e:
-            logger.error("Failed to generate scenario", error=str(e))
+            elapsed_time = time.time() - start_time
+            logger.error(
+                "Failed to generate scenario from LM Studio",
+                error=str(e),
+                error_type=type(e).__name__,
+                category=category,
+                difficulty=difficulty,
+                elapsed_time_seconds=round(elapsed_time, 2),
+                fallback_used=True
+            )
+            
             # Return simple fallback
-            return self._get_simple_fallback_scenario(category, difficulty)
+            fallback_scenario = self._get_simple_fallback_scenario(category, difficulty)
+            
+            logger.info(
+                "Using fallback scenario",
+                total_time_seconds=round(time.time() - start_time, 2),
+                title=fallback_scenario.get("title", "N/A"),
+                category=category,
+                difficulty=difficulty,
+                used_fallback=True
+            )
+            
+            return fallback_scenario
     
     async def evaluate_response(
         self, 
