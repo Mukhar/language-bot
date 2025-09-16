@@ -23,33 +23,33 @@ def create_engine_with_fallback():
     global DATABASE_URL
     
     if "postgresql" in DATABASE_URL:
-        try:
+        # try:
             # Try PostgreSQL first
             logger.info("Attempting to connect to PostgreSQL/Supabase")
-            engine = create_engine(
-                DATABASE_URL,
-                poolclass=QueuePool,
-                pool_size=5,
-                max_overflow=10,
-                pool_pre_ping=True,
-                pool_recycle=300,
-                echo=settings.debug,
-                connect_args={"connect_timeout": 10}  # 10 second timeout
-            )
+            # engine = create_engine(
+            #     DATABASE_URL,
+            #     poolclass=QueuePool,
+            #     pool_size=5,
+            #     max_overflow=10,
+            #     pool_pre_ping=True,
+            #     pool_recycle=300,
+            #     echo=settings.debug,
+            #     connect_args={"connect_timeout": 10}  # 10 second timeout
+            # )
             
             # Test the connection
-            from sqlalchemy import text
-            with engine.connect() as conn:
-                conn.execute(text("SELECT 1"))
+            # from sqlalchemy import text
+            # with engine.connect() as conn:
+            #     conn.execute(text("SELECT 1"))
             
-            logger.info("Successfully connected to PostgreSQL/Supabase")
-            return engine
+            # logger.info("Successfully connected to PostgreSQL/Supabase")
+            # return engine
             
-        except Exception as e:
-            logger.warning(
-                "Failed to connect to PostgreSQL/Supabase, falling back to SQLite",
-                error=str(e)
-            )
+        # except Exception as e:
+            # logger.warning(
+            #     "Failed to connect to PostgreSQL/Supabase, falling back to SQLite",
+            #     error=str(e)
+            # )
             # Fallback to SQLite
             DATABASE_URL = "sqlite:///./healthcare_bot.db"
     
@@ -84,6 +84,23 @@ def get_db() -> Generator:
 
 def create_tables():
     """
-    Create all tables in the database
+    Create all tables in the database using SQLAlchemy metadata
+    No longer using Alembic migrations - tables created directly
     """
-    Base.metadata.create_all(bind=engine)
+    try:
+        logger.info("Creating database tables...")
+        Base.metadata.create_all(bind=engine)
+        logger.info("Database tables created successfully")
+    except Exception as e:
+        logger.error("Failed to create database tables", error=str(e))
+        raise
+
+
+def initialize_database():
+    """
+    Initialize the database by creating tables
+    Call this on application startup
+    """
+    # Import models to register them with Base metadata
+    from .models import Scenario, Response
+    create_tables()

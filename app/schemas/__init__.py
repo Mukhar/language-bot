@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import Optional
 from datetime import datetime
 
@@ -10,14 +10,16 @@ class ScenarioRequest(BaseModel):
     category: str = Field(..., description="Basic category: general, emergency, routine")
     difficulty: str = Field(..., description="Difficulty level: beginner, intermediate")
     
-    @validator('difficulty')
+    @field_validator('difficulty')
+    @classmethod
     def validate_difficulty(cls, v):
         allowed_levels = ['beginner', 'intermediate']
         if v not in allowed_levels:
             raise ValueError(f'Difficulty must be one of: {", ".join(allowed_levels)}')
         return v
     
-    @validator('category')
+    @field_validator('category')
+    @classmethod
     def validate_category(cls, v):
         allowed_categories = ['general', 'emergency', 'routine']
         if v not in allowed_categories:
@@ -35,8 +37,7 @@ class ScenarioResponse(BaseModel):
     category: str
     difficulty: str
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ResponseRequest(BaseModel):
@@ -46,7 +47,8 @@ class ResponseRequest(BaseModel):
     scenario_id: str = Field(..., description="ID of the scenario being responded to")
     response_text: str = Field(..., description="User's response", max_length=2000, min_length=10)
     
-    @validator('response_text')
+    @field_validator('response_text')
+    @classmethod
     def validate_response_text(cls, v):
         if len(v.strip()) < 10:
             raise ValueError('Response must be at least 10 characters long')
@@ -64,8 +66,7 @@ class ResponseWithEvaluation(BaseModel):
     feedback: Optional[str] = None
     submitted_at: datetime
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ErrorResponse(BaseModel):

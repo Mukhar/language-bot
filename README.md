@@ -15,7 +15,18 @@ source healthcare_bot_env/bin/activate
 pip install -r requirements.txt
 ```
 
-3. Run the application:
+3. Database Setup:
+   - The database tables are automatically created when the application starts
+   - For manual setup or custom installations, use the provided schema.sql file:
+   ```bash
+   # For SQLite (default)
+   sqlite3 healthcare_bot.db < schema.sql
+   
+   # For PostgreSQL
+   psql -d your_database < schema.sql
+   ```
+
+4. Run the application:
 ```bash
 uvicorn app.main:app --reload
 ```

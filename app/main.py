@@ -5,7 +5,7 @@ import structlog
 from datetime import datetime
 
 from .config import get_settings
-from .database import create_tables
+from .database import initialize_database
 from .routers import scenarios, responses
 from .schemas import HealthResponse
 
@@ -41,11 +41,11 @@ async def lifespan(app: FastAPI):
     logger.info("Starting Simple Healthcare Communication Bot API")
     
     try:
-        logger.info("Creating/verifying database tables...")
-        create_tables()
-        logger.info("Database tables created/verified successfully")
+        logger.info("Initializing database...")
+        initialize_database()
+        logger.info("Database initialized successfully")
     except Exception as e:
-        logger.error("Failed to create/verify database tables", error=str(e), exc_info=True)
+        logger.error("Failed to initialize database", error=str(e), exc_info=True)
         # Don't fail startup - let the app start and handle DB errors per request
         logger.warning("Application starting without database verification")
     

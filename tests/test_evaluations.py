@@ -7,7 +7,7 @@ import uuid
 
 from app.main import app
 from app.database import get_db, Base
-from app.models import Scenario, Response, Evaluation
+from app.models import Scenario, Response
 
 
 # Test database setup
@@ -47,11 +47,8 @@ def sample_response(setup_database):
         id=str(uuid.uuid4()),
         title="Test Evaluation Scenario",
         description="A scenario for testing evaluations",
-        patient_background="Test patient background",
-        medical_context="Test medical context",
-        communication_challenge="Test communication challenge",
         category="general",
-        difficulty_level="beginner"
+        difficulty="beginner"
     )
     db.add(scenario)
     
@@ -67,9 +64,9 @@ def sample_response(setup_database):
     response_id = response.id
     scenario_data = {
         "description": scenario.description,
-        "patient_background": scenario.patient_background,
-        "medical_context": scenario.medical_context,
-        "communication_challenge": scenario.communication_challenge
+        "title": scenario.title,
+        "category": scenario.category,
+        "difficulty": scenario.difficulty
     }
     
     db.close()
