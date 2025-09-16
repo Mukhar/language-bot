@@ -86,11 +86,22 @@ with col1:
         st.subheader("🎭 Current Scenario")
         
         # Scenario metadata
-        col_meta1, col_meta2 = st.columns(2)
+        col_meta1, col_meta2, col_meta3 = st.columns(3)
         with col_meta1:
             st.info(f"📂 **Category:** {scenario.get('category', 'N/A').title()}")
         with col_meta2:
             st.info(f"📊 **Difficulty:** {scenario.get('difficulty', 'N/A').title()}")
+        with col_meta3:
+            scenario_id = scenario.get('id', 'N/A')
+            st.info(f"🆔 **ID:** {scenario_id[-8:] if len(scenario_id) > 8 else scenario_id}")
+        
+        # Full scenario ID in expandable section
+        with st.expander("🔍 Full Scenario Details"):
+            st.text(f"Full Scenario ID: {scenario.get('id', 'N/A')}")
+            if scenario.get('created_at'):
+                st.text(f"Created: {scenario.get('created_at')}")
+            if scenario.get('updated_at'):
+                st.text(f"Updated: {scenario.get('updated_at')}")
         
         # Scenario content
         st.markdown("**📖 Scenario Title:**")
@@ -187,7 +198,11 @@ if st.session_state.last_evaluation:
             st.metric("🎯 Score", "Pending...")
     
     with col2:
-        scenario_id = eval_data.get("scenario_id", "N/A")
+        # Show the actual scenario ID from the current scenario, not the evaluation
+        if st.session_state.current_scenario:
+            scenario_id = st.session_state.current_scenario.get("id", "N/A")
+        else:
+            scenario_id = eval_data.get("scenario_id", "N/A")
         st.metric("🆔 Scenario ID", scenario_id[-8:] if len(scenario_id) > 8 else scenario_id)
     
     with col3:
@@ -232,6 +247,28 @@ if st.session_state.last_evaluation:
 
 # Footer
 st.markdown("---")
+
+# Debug section (collapsible)
+with st.expander("🐛 Debug Information"):
+    st.subheader("Session State")
+    if st.session_state.current_scenario:
+        st.json(st.session_state.current_scenario)
+    else:
+        st.write("No current scenario")
+    
+    if st.session_state.last_evaluation:
+        st.subheader("Last Evaluation")
+        st.json(st.session_state.last_evaluation)
+    
+    st.subheader("API Connection Test")
+    if st.button("🔍 Test API Connection"):
+        try:
+            response = requests.get(f"{API_BASE}/health", timeout=5)
+            st.success(f"✅ API Response: {response.status_code}")
+            st.json(response.json())
+        except Exception as e:
+            st.error(f"❌ API Error: {str(e)}")
+
 st.markdown("""
 <div style='text-align: center; color: #666; padding: 20px;'>
     <p>💡 <strong>Practice Tips:</strong> Focus on empathy, clarity, and professional communication</p>

@@ -6,8 +6,8 @@ python-multipart==0.0.9
 # Database dependencies
 sqlalchemy==2.0.31
 alembic==1.13.2
-# psycopg2-binary==2.9.7  # Commented out for development, will use SQLite
-aiosqlite==0.20.0
+psycopg2-binary==2.9.7  # PostgreSQL adapter for Supabase
+aiosqlite==0.20.0  # Keep for fallback
 
 # Authentication and security
 python-jose[cryptography]==3.3.0

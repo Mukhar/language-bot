@@ -39,9 +39,17 @@ async def lifespan(app: FastAPI):
     """
     # Startup
     logger.info("Starting Simple Healthcare Communication Bot API")
-    create_tables()
-    logger.info("Database tables created/verified")
     
+    try:
+        logger.info("Creating/verifying database tables...")
+        create_tables()
+        logger.info("Database tables created/verified successfully")
+    except Exception as e:
+        logger.error("Failed to create/verify database tables", error=str(e), exc_info=True)
+        # Don't fail startup - let the app start and handle DB errors per request
+        logger.warning("Application starting without database verification")
+    
+    logger.info("Application startup completed")
     yield
     
     # Shutdown
