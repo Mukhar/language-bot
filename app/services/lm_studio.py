@@ -1,13 +1,13 @@
 import httpx
 import json
 import os
+import time
 from typing import Dict, Any, Optional
 from ..config import get_settings
 from ..prompts import (
     SCENARIO_SYSTEM_PROMPT,
     SCENARIO_USER_PROMPT_TEMPLATE,
     EVALUATION_SYSTEM_PROMPT,
-    EVALUATION_USER_PROMPT_TEMPLATE,
     FALLBACK_SCENARIO_TITLE,
     FALLBACK_SCENARIO_DESCRIPTION,
     FALLBACK_EVALUATION_SCORE,
@@ -44,7 +44,6 @@ class LMStudioService:
         
         Enhanced with detailed logging for monitoring and debugging.
         """
-        import time
         start_time = time.time()
         
         headers = {
@@ -124,7 +123,6 @@ class LMStudioService:
         Easy to modify for different use cases.
         Enhanced with detailed logging for monitoring and debugging.
         """
-        import time
         start_time = time.time()
         
         logger.info(
@@ -232,7 +230,7 @@ class LMStudioService:
         3. Returns score and feedback
         """
         # Build simple evaluation prompt
-        prompt = self._build_simple_evaluation_prompt(scenario, user_response)
+        prompt = self._build_evaluation_prompt(scenario, user_response)
         
         # Simple evaluation request
         payload = {
@@ -276,17 +274,6 @@ class LMStudioService:
             difficulty=difficulty
         ).strip()
     
-    def _build_simple_evaluation_prompt(self, scenario: Dict[str, Any], user_response: str) -> str:
-        """
-        Build prompt for simple response evaluation
-        
-        Uses the prompt template from prompts.py for easy modification.
-        """
-        return EVALUATION_USER_PROMPT_TEMPLATE.format(
-            scenario_title=scenario.get('title', 'Healthcare Communication Scenario'),
-            scenario_description=scenario.get('description', 'Practice communication scenario'),
-            user_response=user_response
-        ).strip()
     
     def _parse_simple_scenario_response(self, response_text: str, category: str, difficulty: str) -> Dict[str, Any]:
         """
@@ -415,9 +402,6 @@ Make the scenario realistic, educational, and appropriate for healthcare profess
         return base_prompt.strip()
     
     def _build_evaluation_prompt(self, scenario: Dict[str, Any], user_response: str) -> str:
-        """
-        Build prompt for response evaluation
-        """
         prompt = f"""
 Evaluate the following healthcare communication response:
 
@@ -437,12 +421,12 @@ Please evaluate this response on the following dimensions (scale 1-10):
 
 Provide your evaluation in the following JSON format:
 {{
-    "overall_score": 0.0,
+    
+    "score": 0.0",
+    "feedback": "Detailed explanation of strengths and areas for improvement with professionalism_score: 0.0,
+    medical_accuracy_score: 0.0,
     "empathy_score": 0.0,
-    "clarity_score": 0.0,
-    "professionalism_score": 0.0,
-    "medical_accuracy_score": 0.0,
-    "detailed_feedback": "Detailed explanation of strengths and areas for improvement",
+    "clarity_score": 0.0,",
     "improvement_suggestions": ["Specific suggestion 1", "Specific suggestion 2", "Specific suggestion 3"]
 }}
 """

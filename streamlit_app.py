@@ -129,13 +129,22 @@ with col2:
             value=st.session_state.response_text,
             height=200,
             placeholder="Type your compassionate and professional response here...",
-            help="Consider the patient's emotional state, use clear language, and show empathy.",
+            help="Consider the patient's emotional state, use clear language, and show empathy. Minimum 10 characters required.",
             label_visibility="collapsed",
             key="response_input"
         )
         
         # Update session state when text changes
         st.session_state.response_text = response_text
+        
+        # Character counter with validation feedback
+        char_count = len(response_text.strip())
+        if char_count == 0:
+            st.caption("💭 Start typing your response...")
+        elif char_count < 10:
+            st.caption(f"⚠️ {char_count}/10 characters minimum - {10 - char_count} more needed")
+        else:
+            st.caption(f"✅ {char_count} characters - Ready to submit!")
         
         col_submit, col_clear = st.columns([3, 1])
         
@@ -147,7 +156,13 @@ with col2:
                 st.session_state.response_text = ""
         
         if submit_button:
-            if response_text.strip():
+            # Validate response length before submission
+            if not response_text.strip():
+                st.warning("⚠️ Please enter a response before submitting!")
+            elif len(response_text.strip()) < 10:
+                st.warning("⚠️ Your response is too short. Please provide at least 10 characters to give a meaningful response.")
+                st.info("💡 Try to include more details about how you would communicate with the patient.")
+            else:
                 st.session_state.api_loading = True
                 with st.spinner("🔍 Evaluating your response..."):
                     try:
@@ -164,10 +179,42 @@ with col2:
                             st.session_state.last_evaluation = evaluation
                             st.session_state.response_text = ""  # Clear the text after successful submission
                             st.success("✅ Response submitted and evaluated!")
+                        elif response.status_code == 422:
+                            # Handle validation errors from the API
+                            try:
+                                error_data = response.json()
+                                if "detail" in error_data:
+                                    if isinstance(error_data["detail"], list):
+                                        # Pydantic validation errors
+                                        error_messages = []
+                                        for error in error_data["detail"]:
+                                            if "response must be at least 10 characters" in str(error.get("msg", "")).lower():
+                                                error_messages.append("Response is too short (minimum 10 characters)")
+                                            elif "response_text" in str(error.get("loc", [])):
+                                                error_messages.append(f"Response validation error: {error.get('msg', 'Invalid response format')}")
+                                            else:
+                                                error_messages.append(f"Validation error: {error.get('msg', 'Unknown error')}")
+                                        
+                                        for msg in error_messages:
+                                            st.error(f"❌ {msg}")
+                                    else:
+                                        # Simple string error
+                                        st.error(f"❌ Validation error: {error_data['detail']}")
+                                else:
+                                    st.error(f"❌ Validation error: Please check your response format")
+                            except json.JSONDecodeError:
+                                st.error("❌ Response validation failed. Please ensure your response is at least 10 characters long.")
                         else:
                             st.error(f"❌ Failed to submit response: {response.status_code}")
                             if response.text:
-                                st.error(f"Error details: {response.text}")
+                                try:
+                                    error_data = response.json()
+                                    if "detail" in error_data:
+                                        st.error(f"Error details: {error_data['detail']}")
+                                    else:
+                                        st.error(f"Error details: {response.text}")
+                                except json.JSONDecodeError:
+                                    st.error(f"Error details: {response.text}")
                     except requests.exceptions.ConnectionError:
                         st.error("🔌 Cannot connect to API. Make sure the FastAPI server is running.")
                     except requests.exceptions.Timeout:
@@ -176,8 +223,6 @@ with col2:
                         st.error(f"❌ Unexpected error: {str(e)}")
                     finally:
                         st.session_state.api_loading = False
-            else:
-                st.warning("⚠️ Please enter a response before submitting!")
     else:
         st.info("👈 Generate a scenario first to practice your response")
 
@@ -188,7 +233,7 @@ if st.session_state.last_evaluation:
     eval_data = st.session_state.last_evaluation
     
     # Score and metadata in columns
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3 = st.columns(3)
     
     with col1:
         score = eval_data.get("score", 0)
@@ -198,18 +243,13 @@ if st.session_state.last_evaluation:
             st.metric("🎯 Score", "Pending...")
     
     with col2:
-        # Show the actual scenario ID from the current scenario, not the evaluation
         if st.session_state.current_scenario:
             scenario_id = st.session_state.current_scenario.get("id", "N/A")
         else:
             scenario_id = eval_data.get("scenario_id", "N/A")
-        st.metric("🆔 Scenario ID", scenario_id[-8:] if len(scenario_id) > 8 else scenario_id)
+        st.metric("🆔 Scenario ID", scenario_id)
     
     with col3:
-        response_id = eval_data.get("id", "N/A") 
-        st.metric("� Response ID", response_id[-8:] if len(response_id) > 8 else response_id)
-    
-    with col4:
         timestamp = eval_data.get("submitted_at", "")
         if timestamp:
             try:
@@ -245,10 +285,8 @@ if st.session_state.last_evaluation:
         if st.button("🎯 Retry Same Scenario", use_container_width=True):
             st.session_state.last_evaluation = None
 
-# Footer
 st.markdown("---")
 
-# Debug section (collapsible)
 with st.expander("🐛 Debug Information"):
     st.subheader("Session State")
     if st.session_state.current_scenario:

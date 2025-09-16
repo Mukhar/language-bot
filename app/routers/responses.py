@@ -52,8 +52,15 @@ async def submit_response(
         # Step 3: Try to evaluate the response
         try:
             lm_studio = LMStudioService()
+            # Create clean scenario dictionary with only needed fields
+            scenario_dict = {
+                "title": scenario.title,
+                "description": scenario.description,
+                "category": scenario.category,
+                "difficulty": scenario.difficulty
+            }
             evaluation = await lm_studio.evaluate_response(
-                scenario=scenario.__dict__,
+                scenario=scenario_dict,
                 user_response=request.response_text
             )
             

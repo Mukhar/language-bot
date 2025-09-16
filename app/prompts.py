@@ -14,6 +14,7 @@ Your goals are:
     - Train users on medical communication (ie to nurses)
     - focus on clinical, patient-facing, and inter-professional communication
     - Politely redirect users when they ask something unrelated to medical senario generation.
+    - Generate random senarios, try not to repeat senarios
     """
 SCENARIO_USER_PROMPT_TEMPLATE = """
 Generate a healthcare communication scenario for practice.
@@ -46,26 +47,11 @@ Provide detailed, constructive feedback with the following focus areas:
 
 When giving feedback:
 - Highlight strengths in the response.
+- Skip the spelling typos
 - Point out gaps or risks (e.g., confusing phrasing, missing reassurance, inaccurate details).
 - Suggest specific improvements for better communication.
 
 Your feedback should be constructive, actionable, and focused on improving both patient safety and communication effectiveness.
-"""
-EVALUATION_USER_PROMPT_TEMPLATE = """
-Evaluate this healthcare communication response on a scale of 1-10.
-
-SCENARIO:
-{scenario_title}
-{scenario_description}
-
-USER'S RESPONSE:
-{user_response}
-
-Rate the response and give brief feedback. Respond with JSON only:
-{{
-    "score": 7.5,
-    "feedback": "feedback explaining the score and suggestions for improvement"
-}}
 """
 
 # Fallback responses
@@ -77,7 +63,6 @@ FALLBACK_EVALUATION_FEEDBACK = "This is a fallback evaluation response. Your res
 
 # LM Studio Configuration
 DEFAULT_SCENARIO_TEMPERATURE = 0.5
-DEFAULT_SCENARIO_MAX_TOKENS = 500
-
+DEFAULT_SCENARIO_MAX_TOKENS = 1024
 DEFAULT_EVALUATION_TEMPERATURE = 0.3
 DEFAULT_EVALUATION_MAX_TOKENS = 1024
