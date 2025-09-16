@@ -1,6 +1,7 @@
 # Healthcare Communication Practice Bot
 
 A FastAPI-based backend system for healthcare communication training with AI evaluation.
+<img width="3456" height="2234" alt="image" src="https://github.com/user-attachments/assets/5bb95310-7ce1-493a-9e3b-e549e113bc3f" />
 
 ## Setup
 
